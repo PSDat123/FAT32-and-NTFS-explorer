@@ -17,7 +17,7 @@ Một ứng dụng được viết bằng Python mô phỏng một shell giống
 * Xoá file hoặc thư mục (rm)
 * Copy nội dung file (cp)
 
-## Cách Sử Dụng
+## Cách sử dụng
 ```python
 python main.py
 ```
