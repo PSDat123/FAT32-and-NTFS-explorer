@@ -17,5 +17,10 @@ Một ứng dụng được viết bằng Python mô phỏng một shell giống
 * Xoá file hoặc thư mục (rm)
 * Copy nội dung file (cp)
 
+## How To Run
+```python
+python main.py
+```
+
 ## Deadline
 3 Weeks
