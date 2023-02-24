@@ -1,16 +1,20 @@
+import cmd
 from FAT32 import FAT32
 
-class Shell:
+class Shell(cmd.Cmd):
+  intro = "Hello"
+  cwd = []
+  prompt = ""
   def __init__(self, volume: FAT32) -> None:
+    super(Shell, self).__init__()
     self.vol = volume
-  def interactive(self):
-    print(self.vol)
-    self.ls()
-    # while(True):
-    #   cmd = input(">")
-    #   if cmd == "ls":
-    #     self.vol.RDET.getList()
-  def ls(self, dir=""):
+    Shell.cwd.append(self.vol.name + ":\\")
+    self.__updatePrompt()
+
+  def __updatePrompt(self):
+    Shell.prompt = f"┌──(Tommy@Shelby)-[{''.join(Shell.cwd)}]\n└─$ "
+
+  def do_ls(self, arg):
     filelist = self.vol.getDir(dir)
     print(f"{'Flags':<11}{'Date Modified':<22}{'Size':<12}{'Name':<10}")
     for file in filelist:
@@ -31,3 +35,13 @@ class Shell:
       flagstr = "".join(flagstr)
 
       print(f"{flagstr:<11}{str(file['Date Modified']):<22}{file['Size']:<12}{file['Name']:<10}")
+
+  def do_bye(self, arg):
+    print('Thank you for using Shelby')
+    self.close()
+    return True
+
+  def close(self):
+    if self.vol:
+      del self.vol
+      self.vol = None
