@@ -30,6 +30,7 @@ class RDETentry:
     self.dateCreated = 0
     self.lastAccessed = 0
     self.dateUpdated = 0
+    self.longname = ""
     if self.flag == b'\x0f':
       self.isSubEntry = True
 
@@ -45,7 +46,6 @@ class RDETentry:
       
       self.attr = Attribute(int.from_bytes(self.flag, byteorder='little'))
       if Attribute.VOLLABLE in self.attr:
-        self.name = self.name.decode()
         self.isLabel = True
         return
 
@@ -94,30 +94,49 @@ class RDETentry:
         if self.name.endswith(b"\xff\xff"):
           self.name = self.name[:-2]
           break
-      self.name = self.name.decode('utf-16le')
+      self.name = self.name.decode('utf-16le').strip('\x00')
 
+  def isActiveEntry(self) -> bool:
+    return not (self.isEmpty or self.isSubEntry or self.isDeleted or self.isLabel)
+  
+  def isDirectory(self) -> bool:
+    return Attribute.DIRECTORY in self.attr
 class RDET:
   def __init__(self, data) -> None:
     self.rawData = data
     self.entries = []
+    longname = ""
     for i in range(0, len(data), 32):
       self.entries.append(RDETentry(self.rawData[i: i + 32]))
-  
-  def getFileListing(self):
-    filename = ""
-    filelist = []
-    for i in range(len(self.entries)):
-      if self.entries[i].isEmpty or self.entries[i].isDeleted or self.entries[i].isLabel: 
-        filename = ""
+      if self.entries[-1].isEmpty or self.entries[-1].isDeleted:
+        longname = ""
         continue
-      if self.entries[i].isSubEntry: 
-        filename = self.entries[i].name + filename
+      if self.entries[-1].isSubEntry:
+        longname = self.entries[-1].name + longname
       else:
-        if not len(filename):
-          filename = self.entries[i].name.strip().decode() + "." + self.entries[i].ext.decode()
-        filelist.append((filename.strip("\x00"), self.entries[i]))
-        filename = ""
-    return filelist
+        if longname != "":
+          self.entries[-1].longname = longname
+        else:
+          extend = self.entries[-1].ext.strip().decode()
+          if extend == "":
+            self.entries[-1].longname = self.entries[-1].name.strip().decode()
+          else:
+            self.entries[-1].longname = self.entries[-1].name.strip().decode() + "." + extend
+        longname = ""
+
+  def getAtiveEntries(self):
+    entry_list = []
+    for i in range(len(self.entries)):
+      if self.entries[i].isActiveEntry():
+        entry_list.append(self.entries[i])
+    return entry_list
+
+  def findEntry(self, name):
+    for i in range(len(self.entries)):
+      if self.entries[i].isActiveEntry() and self.entries[i].longname == name:
+        return self.entries[i]
+    return None
+  
   # def getList(self):
   #   filename = ""
   #   for i in range(len(self.entries)):
@@ -163,25 +182,36 @@ class FAT32:
       if self.bootSector["FAT Name"] != b"FAT32   ":
         raise Exception("Not FAT32")
       self.bootSector["FAT Name"] = self.bootSector["FAT Name"].decode()
-      SB = self.bootSector['Reserved Sectors']
-      SF = self.bootSector["Sectors Per FAT"]
-      NF = self.bootSector["No. Copies of FAT"]
-      SC = self.bootSector["Sectors Per Cluster"]
-      BS = self.bootSector["Bytes Per Sector"]
-      self.bootSectorReservedRaw = self.fd.read(BS * (SB - 1))
+      self.SB = self.bootSector['Reserved Sectors']
+      self.SF = self.bootSector["Sectors Per FAT"]
+      self.NF = self.bootSector["No. Copies of FAT"]
+      self.SC = self.bootSector["Sectors Per Cluster"]
+      self.BS = self.bootSector["Bytes Per Sector"]
+      self.bootSectorReservedRaw = self.fd.read(self.BS * (self.SB - 1))
       
-      FATsize = BS * SF
+      FATsize = self.BS * self.SF
       self.FAT = []
-      for _ in range(NF):
+      for _ in range(self.NF):
         self.FAT.append(FAT(self.fd.read(FATsize)))
 
-      self.RDET = None
-      if self.bootSector["Starting Cluster of RDET"] == 2:
-        self.RDET = RDET(self.fd.read(BS * SC))
-      elif self.bootSector["Starting Cluster of RDET"] > 2:
-        self.RDET = RDET(self.fd.read(BS * SC * (self.bootSector["Starting Cluster of RDET"] - 1))[-BS * SC:])
-      else:
-        raise Exception("Hold on, Something ain't right")
+      self.DET = {}
+      
+      start = self.bootSector["Starting Cluster of RDET"]
+      off = self.__offsetFromCluster(start) * self.BS
+
+      if self.fd.tell() != off:
+        self.fd.seek(off)
+
+      self.DET[start] = RDET(self.fd.read(self.BS * self.SC))
+
+      self.RDET = self.DET[start]
+
+      # if self.bootSector["Starting Cluster of RDET"] == 2:
+      #   self.RDET = RDET(self.fd.read(self.BS * self.SC))
+      # elif self.bootSector["Starting Cluster of RDET"] > 2:
+      #   self.RDET = RDET(self.fd.read(self.BS * self.SC * (self.bootSector["Starting Cluster of RDET"] - 1))[-self.BS * self.SC:])
+      # else:
+      #   raise Exception("Hold on, Something ain't right")
       
       
       # print(SC * (self.bootSector["Starting Cluster of RDET"] - 2))
@@ -218,6 +248,9 @@ class FAT32:
     self.bootSector['Signature'] = self.bootSectorRaw[0x1FE:0x200]
     self.bootSector['Starting Sector of Data'] = self.bootSector['Reserved Sectors'] + self.bootSector['No. Copies of FAT'] * self.bootSector['Sectors Per FAT']
 
+  def __offsetFromCluster(self, index):
+    return self.SB + self.SF * self.NF + (index - 2) * self.SC
+  
   def printAll(self):
     print("Volume name:", self.name)
     print("Volume information:")
@@ -233,17 +266,37 @@ class FAT32:
 
   def getDir(self, dir=""):
     if dir == "":
-      filelist = self.RDET.getFileListing()
+      entry_list = self.RDET.getAtiveEntries()
       ret = []
-      for file in filelist:
+      for entry in entry_list:
         obj = {}
-        obj["Flags"] = file[1].attr.value
-        obj["Date Modified"] = file[1].dateUpdated
-        obj["Size"] = file[1].size
-        obj["Name"] = file[0]
+        obj["Flags"] = entry.attr.value
+        obj["Date Modified"] = entry.dateUpdated
+        obj["Size"] = entry.size
+        obj["Name"] = entry.longname
         ret.append(obj)
       return ret
     return None
+
+  def changeDir(self, dir=""):
+    if dir == "":
+      raise Exception("Directory name is required!")
+    entry = self.RDET.findEntry(dir)
+    if entry is None:
+      raise Exception("Directory not found!")
+    if entry.isDirectory():
+      if entry.startCluster == 0:
+        self.RDET = self.DET[self.bootSector["Starting Cluster of RDET"]]
+        return
+      if entry.startCluster in self.DET:
+        self.RDET = self.DET[entry.startCluster]
+        return
+      self.fd.seek(self.__offsetFromCluster(entry.startCluster) * self.BS)
+      self.DET[entry.startCluster] = RDET(self.fd.read(self.BS * self.SC))
+      self.RDET = self.DET[entry.startCluster]
+      return 
+    else:
+      raise Exception("Not a directory!")
 
   def __str__(self) -> str:
     s = ""

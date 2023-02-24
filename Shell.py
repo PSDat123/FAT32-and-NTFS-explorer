@@ -2,7 +2,7 @@ import cmd
 from FAT32 import FAT32
 
 class Shell(cmd.Cmd):
-  intro = "Hello"
+  intro = "Welcome to Shelby the pseudo-shell! Type help or ? to list the commands.\n"
   cwd = []
   prompt = ""
   def __init__(self, volume: FAT32) -> None:
@@ -15,7 +15,7 @@ class Shell(cmd.Cmd):
     Shell.prompt = f"┌──(Tommy@Shelby)-[{''.join(Shell.cwd)}]\n└─$ "
 
   def do_ls(self, arg):
-    filelist = self.vol.getDir(dir)
+    filelist = self.vol.getDir()
     print(f"{'Flags':<11}{'Date Modified':<22}{'Size':<12}{'Name':<10}")
     for file in filelist:
       flags = file['Flags']
@@ -35,6 +35,17 @@ class Shell(cmd.Cmd):
       flagstr = "".join(flagstr)
 
       print(f"{flagstr:<11}{str(file['Date Modified']):<22}{file['Size']:<12}{file['Name']:<10}")
+
+  def do_cd(self, arg):
+    try:
+      self.vol.changeDir(arg)
+      if arg == "..":
+        Shell.cwd.pop()
+      elif arg != ".":
+        Shell.cwd.append(arg + "\\")
+      self.__updatePrompt()
+    except Exception as e:
+      print(f"[ERROR] {e}")
 
   def do_bye(self, arg):
     print('Thank you for using Shelby')
