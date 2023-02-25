@@ -1,5 +1,5 @@
 # FAT32 and NTFS explorer
-HCMUS - 21CLC5 - Operating Systems project
+HCMUS - 21CLC05 - Operating Systems project
 
 GV: **Lê Viết Long**
 ## Thành Viên
@@ -22,6 +22,7 @@ Shelby là một ứng dụng được viết bằng Python mô phỏng một sh
 ```python
 python main.py
 ```
-
+## Demo
+![Demo of some commands](./preview/demo1.png "Shelby demo")
 ## Deadline
 3 Weeks
