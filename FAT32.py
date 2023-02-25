@@ -106,7 +106,7 @@ class RDETentry:
       self.name = self.name.decode('utf-16le').strip('\x00')
 
   def isActiveEntry(self) -> bool:
-    return not (self.isEmpty or self.isSubEntry or self.isDeleted or self.isLabel)
+    return not (self.isEmpty or self.isSubEntry or self.isDeleted or self.isLabel or Attribute.SYSTEM in self.attr)
   
   def isDirectory(self) -> bool:
     return Attribute.DIRECTORY in self.attr
