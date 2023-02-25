@@ -3,21 +3,20 @@ from FAT32 import FAT32
 
 class Shell(cmd.Cmd):
   intro = "Welcome to Shelby the pseudo-shell! Type help or ? to list the commands.\n"
-  cwd = []
   prompt = ""
   def __init__(self, volume: FAT32) -> None:
     super(Shell, self).__init__()
     self.vol = volume
-    Shell.cwd.append(self.vol.name + ":\\")
     self.__updatePrompt()
 
   def __updatePrompt(self):
-    Shell.prompt = f"┌──(Tommy@Shelby)-[{''.join(Shell.cwd)}]\n└─$ "
+    Shell.prompt = f'┌──(Tommy@Shelby)-[{self.vol.name + chr(92) + chr(92).join(self.vol.cwd)}]\n└─$ '
 
   def do_ls(self, arg):
     try:
       filelist = self.vol.getDir(arg)
-      print(f"{'Flags':<11}{'Date Modified':<22}{'Size':<12}{'Name':<10}")
+      print(f"{'Mode':<10}  {'LastWriteTime':>20}  {'Length':>15}  {'Name'}")
+      print(f"{'────':<10}  {'─────────────':>20}  {'──────':>15}  {'────'}")
       for file in filelist:
         flags = file['Flags']
         flagstr = list("-------")
@@ -35,29 +34,45 @@ class Shell(cmd.Cmd):
           flagstr[-6] = 'a'
         flagstr = "".join(flagstr)
 
-        print(f"{flagstr:<11}{str(file['Date Modified']):<22}{file['Size']:<12}{file['Name']:<10}")
+        print(f"{flagstr:<10}  {str(file['Date Modified']):>20}  {file['Size'] if file['Size'] else '':>15}  {file['Name']}")
     except Exception as e:
       print(f"[ERROR] {e}")
-
+#               LastWriteTime
   def do_cd(self, arg):
     try:
       self.vol.changeDir(arg)
-      dirs = arg.replace("/", "\\").strip("\\").split("\\")
-      # print(dirs)
-      
-      for d in dirs:
-        if d == "..":
-          Shell.cwd.pop()
-        elif d != ".":
-          Shell.cwd.append(d + "\\")
-        self.__updatePrompt()
+      self.__updatePrompt()
     except Exception as e:
       print(f"[ERROR] {e}")
 
   def do_tree(self, arg):
-    pass
+    print(self.vol.name + ":")
+    entries = self.vol.getDir()
+    # pos = -1 -> First entry, pos = 1 -> Last entry
+    def printTree(entry, prefix="", last=False):
+      print(prefix + ("└─" if last else "├─") + entry["Name"])
+      # check if is archive
+      if entry["Flags"] & 0b100000:
+        return
+      
+      self.vol.changeDir(entry["Name"], False)
+      entries = self.vol.getDir()
+      l = len(entries)
+      for i in range(l):
+        if entries[i]["Name"] in  (".", ".."):
+          continue
+        prefixChar = "   " if last else "│  "
+        printTree(entries[i], prefix + prefixChar, i == l - 1)
+      self.vol.changeDir("..", False)
+
+    l = len(entries)
+    for i in range(l):
+      printTree(entries[i], "", i == l - 1)
   
   def do_cat(self, arg):
+    if arg == "":
+      print(f"[ERROR] No path provided")
+      return
     try:
       print(self.vol.getFileContent(arg).decode())
     except UnicodeDecodeError:

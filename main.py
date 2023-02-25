@@ -4,5 +4,6 @@ from Shell import Shell
 
 if __name__ == "__main__":
   vol = FAT32("D")
+  print(vol)
   shell = Shell(vol)
   shell.cmdloop()

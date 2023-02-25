@@ -111,6 +111,9 @@ class RDETentry:
   def isDirectory(self) -> bool:
     return Attribute.DIRECTORY in self.attr
 
+  def isArchive(self) -> bool:
+    return Attribute.ARCHIVE in self.attr
+
 class RDET:
   def __init__(self, data) -> None:
     self.rawData = data
@@ -134,7 +137,7 @@ class RDET:
             self.entries[-1].longname = self.entries[-1].name.strip().decode() + "." + extend
         longname = ""
 
-  def getAtiveEntries(self):
+  def getActiveEntries(self):
     entry_list = []
     for i in range(len(self.entries)):
       if self.entries[i].isActiveEntry():
@@ -171,9 +174,10 @@ class FAT32:
     "FAT Name"
   ]
   def __init__(self, name) -> None:
-    self.name = name
+    self.name = name + ":"
+    self.cwd = []
     try:
-      self.fd = open(r'\\.\%s:' % self.name, 'rb')
+      self.fd = open(r'\\.\%s' % self.name, 'rb')
     except FileNotFoundError:
       print(f"[ERROR] No volume named {name}")
       exit()
@@ -268,7 +272,7 @@ class FAT32:
     for key in FAT32.importantInfo:
       print(f"{key}: {self.bootSector[key]}")
 
-  def visitDir(self, dir) -> RDET:
+  def visitDir(self, dir, update_cwd=False) -> RDET:
     if dir == "":
       raise Exception("Directory name is required!")
     dirs = dir.replace("/", "\\").strip("\\").split("\\")
@@ -278,6 +282,12 @@ class FAT32:
       if entry is None:
         raise Exception("Directory not found!")
       if entry.isDirectory():
+        if update_cwd:
+          if d == "..":
+            self.cwd.pop()
+          elif d != ".":
+            self.cwd.append(entry.longname)
+
         if entry.startCluster == 0:
           cdet = self.DET[self.bootSector["Starting Cluster of RDET"]]
           continue
@@ -285,7 +295,6 @@ class FAT32:
           cdet = self.DET[entry.startCluster]
           continue
         self.DET[entry.startCluster] = RDET(self.getAllClusterData(entry.startCluster))
-        
         # self.DET[entry.startCluster] = RDET(self.fd.read(self.BS * self.SC))
         cdet = self.DET[entry.startCluster] 
       else:
@@ -294,7 +303,7 @@ class FAT32:
   
   def getDir(self, dir=""):
     if dir == "":
-      entry_list = self.RDET.getAtiveEntries()
+      entry_list = self.RDET.getActiveEntries()
       ret = []
       for entry in entry_list:
         obj = {}
@@ -307,7 +316,7 @@ class FAT32:
     else:
       try:
         cdet = self.visitDir(dir)
-        entry_list = cdet.getAtiveEntries()
+        entry_list = cdet.getActiveEntries()
         ret = []
         for entry in entry_list:
           obj = {}
@@ -320,11 +329,11 @@ class FAT32:
       except Exception as e:
         raise(e)
       
-  def changeDir(self, dir=""):
+  def changeDir(self, dir="", update_cwd=True):
     if dir == "":
       raise Exception("Directory name is required!")
     try:
-      cdet = self.visitDir(dir)
+      cdet = self.visitDir(dir, update_cwd)
       self.RDET = cdet
     except Exception as e:
       raise(e)
