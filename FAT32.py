@@ -16,7 +16,16 @@ class FAT:
     self.elements = []
     for i in range(0, len(self.rawData), 4):
       self.elements.append(int.from_bytes(self.rawData[i:i + 4], byteorder='little'))
-    
+  
+  def getClusterList(self, index):
+    index_list = []
+    while True:
+      index_list.append(index)
+      index = self.elements[index]
+      if index == 0x0FFFFFFF or index == 0x0FFFFFF7:
+        break
+    return index_list 
+
 class RDETentry:
   def __init__(self, data) -> None:
     self.rawData = data
@@ -101,6 +110,7 @@ class RDETentry:
   
   def isDirectory(self) -> bool:
     return Attribute.DIRECTORY in self.attr
+
 class RDET:
   def __init__(self, data) -> None:
     self.rawData = data
@@ -133,7 +143,7 @@ class RDET:
 
   def findEntry(self, name):
     for i in range(len(self.entries)):
-      if self.entries[i].isActiveEntry() and self.entries[i].longname == name:
+      if self.entries[i].isActiveEntry() and self.entries[i].longname.lower() == name.lower():
         return self.entries[i]
     return None
   
@@ -197,13 +207,7 @@ class FAT32:
       self.DET = {}
       
       start = self.bootSector["Starting Cluster of RDET"]
-      off = self.__offsetFromCluster(start) * self.BS
-
-      if self.fd.tell() != off:
-        self.fd.seek(off)
-
-      self.DET[start] = RDET(self.fd.read(self.BS * self.SC))
-
+      self.DET[start] = RDET(self.getAllClusterData(start))
       self.RDET = self.DET[start]
 
       # if self.bootSector["Starting Cluster of RDET"] == 2:
@@ -264,6 +268,30 @@ class FAT32:
     for key in FAT32.importantInfo:
       print(f"{key}: {self.bootSector[key]}")
 
+  def visitDir(self, dir) -> RDET:
+    if dir == "":
+      raise Exception("Directory name is required!")
+    dirs = dir.replace("/", "\\").strip("\\").split("\\")
+    cdet = self.RDET
+    for d in dirs:
+      entry = cdet.findEntry(d)
+      if entry is None:
+        raise Exception("Directory not found!")
+      if entry.isDirectory():
+        if entry.startCluster == 0:
+          cdet = self.DET[self.bootSector["Starting Cluster of RDET"]]
+          continue
+        if entry.startCluster in self.DET:
+          cdet = self.DET[entry.startCluster]
+          continue
+        self.DET[entry.startCluster] = RDET(self.getAllClusterData(entry.startCluster))
+        
+        # self.DET[entry.startCluster] = RDET(self.fd.read(self.BS * self.SC))
+        cdet = self.DET[entry.startCluster] 
+      else:
+        raise Exception("Not a directory")
+    return cdet
+  
   def getDir(self, dir=""):
     if dir == "":
       entry_list = self.RDET.getAtiveEntries()
@@ -276,27 +304,57 @@ class FAT32:
         obj["Name"] = entry.longname
         ret.append(obj)
       return ret
-    return None
-
+    else:
+      try:
+        cdet = self.visitDir(dir)
+        entry_list = cdet.getAtiveEntries()
+        ret = []
+        for entry in entry_list:
+          obj = {}
+          obj["Flags"] = entry.attr.value
+          obj["Date Modified"] = entry.dateUpdated
+          obj["Size"] = entry.size
+          obj["Name"] = entry.longname
+          ret.append(obj)
+        return ret
+      except Exception as e:
+        raise(e)
+      
   def changeDir(self, dir=""):
     if dir == "":
       raise Exception("Directory name is required!")
-    entry = self.RDET.findEntry(dir)
+    try:
+      cdet = self.visitDir(dir)
+      self.RDET = cdet
+    except Exception as e:
+      raise(e)
+
+  def getAllClusterData(self, cluster_index):
+    index_list = self.FAT[0].getClusterList(cluster_index)
+    data = b""
+    for i in index_list:
+      off = self.__offsetFromCluster(i)
+      self.fd.seek(off * self.BS)
+      data += self.fd.read(self.SC * self.BS)
+    return data
+  
+  def getFileContent(self, path: str):
+    path = path.replace("/", "\\")
+    index = path.rfind("\\")
+    if index != -1:
+      name = path[index + 1:]
+      path = path[:index]
+      cdet = self.visitDir(path)
+      entry = cdet.findEntry(name)
+    else: 
+      entry = self.RDET.findEntry(path)
+
     if entry is None:
-      raise Exception("Directory not found!")
+      raise Exception("File doesn't exist")
     if entry.isDirectory():
-      if entry.startCluster == 0:
-        self.RDET = self.DET[self.bootSector["Starting Cluster of RDET"]]
-        return
-      if entry.startCluster in self.DET:
-        self.RDET = self.DET[entry.startCluster]
-        return
-      self.fd.seek(self.__offsetFromCluster(entry.startCluster) * self.BS)
-      self.DET[entry.startCluster] = RDET(self.fd.read(self.BS * self.SC))
-      self.RDET = self.DET[entry.startCluster]
-      return 
-    else:
-      raise Exception("Not a directory!")
+      raise Exception("Is a directory")
+    data = self.getAllClusterData(entry.startCluster)[:entry.size]
+    return data
 
   def __str__(self) -> str:
     s = ""
