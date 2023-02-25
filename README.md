@@ -9,13 +9,14 @@ GV: **Lê Viết Long**
 
 - 21127300 - Nguyễn Cát Huy
 ## Mô tả
-Một ứng dụng được viết bằng Python mô phỏng một shell giống trên linux, hay còn gọi là pseudo-shell để truy cập vào hệ thống tập tin FAT32 và NTFS và thực hiện các chức năng cơ bản sau: 
-* Liệt kê các files (ls)
-* Chuyển đổi thư mục (cd)
-* Tạo thư mục (mkdir)
-* In nội dung file (cat)
-* Xoá file hoặc thư mục (rm)
-* Copy nội dung file (cp)
+Shelby là một ứng dụng được viết bằng Python mô phỏng một shell giống trên linux, hay còn gọi là pseudo-shell để truy cập vào hệ thống tập tin FAT32 và NTFS và thực hiện các chức năng cơ bản sau: 
+* **ls**: Liệt kê các files
+* **cd**: Chuyển đổi thư mục
+* **cat**: In nội dung file
+* **rm**: Xoá file
+* **mkdir**: Tạo thư mục
+* **rmdir**: Xoá thư mục
+* **cp**: Copy nội dung file
 
 ## Cách sử dụng
 ```python
