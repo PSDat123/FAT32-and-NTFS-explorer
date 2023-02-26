@@ -13,10 +13,7 @@ Shelby là một ứng dụng được viết bằng Python mô phỏng một sh
 * **ls**: Liệt kê các files
 * **cd**: Chuyển đổi thư mục
 * **cat**: In nội dung file
-* **rm**: Xoá file
-* **mkdir**: Tạo thư mục
-* **rmdir**: Xoá thư mục
-* **cp**: Copy nội dung file
+* **tree**: Vẽ cây thư mục
 
 ## Cách sử dụng
 ```python

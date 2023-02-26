@@ -1,7 +1,7 @@
 from enum import Flag, auto
 from datetime import datetime
 from itertools import chain
-
+import re
 class Attribute(Flag):
     READ_ONLY = auto()
     HIDDEN = auto()
@@ -95,8 +95,6 @@ class RDETentry:
 
     else:
       self.index = self.rawData[0]
-      # print(self.rawData)
-      # print("Sub entry", self.index)
       self.name = b""
       for i in chain(range(0x1, 0xB), range(0xE, 0x1A), range(0x1C, 0x20)):
         self.name += int.to_bytes(self.rawData[i], 1, byteorder='little')
@@ -149,17 +147,6 @@ class RDET:
       if self.entries[i].isActiveEntry() and self.entries[i].longname.lower() == name.lower():
         return self.entries[i]
     return None
-  
-  # def getList(self):
-  #   filename = ""
-  #   for i in range(len(self.entries)):
-  #     if self.entries[i].isEmpty or self.entries[i].isDeleted or self.entries[i].isLabel: 
-  #       continue
-  #     if self.entries[i].isSubEntry: 
-  #       filename = self.entries[i].name + filename
-  #     else:
-  #       print(filename)
-  #       filename = ""
 
 class FAT32:
   importantInfo = [
@@ -175,7 +162,6 @@ class FAT32:
   ]
   def __init__(self, name) -> None:
     self.name = name + ":"
-    self.cwd = []
     try:
       self.fd = open(r'\\.\%s' % self.name, 'rb')
     except FileNotFoundError:
@@ -213,22 +199,6 @@ class FAT32:
       start = self.bootSector["Starting Cluster of RDET"]
       self.DET[start] = RDET(self.getAllClusterData(start))
       self.RDET = self.DET[start]
-
-      # if self.bootSector["Starting Cluster of RDET"] == 2:
-      #   self.RDET = RDET(self.fd.read(self.BS * self.SC))
-      # elif self.bootSector["Starting Cluster of RDET"] > 2:
-      #   self.RDET = RDET(self.fd.read(self.BS * self.SC * (self.bootSector["Starting Cluster of RDET"] - 1))[-self.BS * self.SC:])
-      # else:
-      #   raise Exception("Hold on, Something ain't right")
-      
-      
-      # print(SC * (self.bootSector["Starting Cluster of RDET"] - 2))
-      # print(self.FATraw[0][:40])
-      # print(self.FATraw[1][:40])
-      # print(len(self.RDET))
-      # print(self.RDET[:512])
-      # print(self.bootSector['Reserved Sectors'] + FATsize * 2)
-      # self.RDETraw = self
 
     except Exception as e:
       print(f"[ERROR] {e}")
@@ -272,22 +242,16 @@ class FAT32:
     for key in FAT32.importantInfo:
       print(f"{key}: {self.bootSector[key]}")
 
-  def visitDir(self, dir, update_cwd=False) -> RDET:
+  def visitDir(self, dir) -> RDET:
     if dir == "":
       raise Exception("Directory name is required!")
-    dirs = dir.replace("/", "\\").strip("\\").split("\\")
+    dirs = re.sub(r"[/\\]+", r"\\", dir).split("\\")
     cdet = self.RDET
     for d in dirs:
       entry = cdet.findEntry(d)
       if entry is None:
         raise Exception("Directory not found!")
       if entry.isDirectory():
-        if update_cwd:
-          if d == "..":
-            self.cwd.pop()
-          elif d != ".":
-            self.cwd.append(entry.longname)
-
         if entry.startCluster == 0:
           cdet = self.DET[self.bootSector["Starting Cluster of RDET"]]
           continue
@@ -329,11 +293,11 @@ class FAT32:
       except Exception as e:
         raise(e)
       
-  def changeDir(self, dir="", update_cwd=True):
+  def changeDir(self, dir=""):
     if dir == "":
       raise Exception("Directory name is required!")
     try:
-      cdet = self.visitDir(dir, update_cwd)
+      cdet = self.visitDir(dir)
       self.RDET = cdet
     except Exception as e:
       raise(e)

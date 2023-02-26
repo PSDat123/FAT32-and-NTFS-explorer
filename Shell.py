@@ -1,4 +1,5 @@
 import cmd
+import re
 from FAT32 import FAT32
 
 class Shell(cmd.Cmd):
@@ -7,10 +8,11 @@ class Shell(cmd.Cmd):
   def __init__(self, volume: FAT32) -> None:
     super(Shell, self).__init__()
     self.vol = volume
+    self.cwd = []
     self.__updatePrompt()
 
   def __updatePrompt(self):
-    Shell.prompt = f'┌──(Tommy@Shelby)-[{self.vol.name + chr(92) + chr(92).join(self.vol.cwd)}]\n└─$ '
+    Shell.prompt = f'┌──(Tommy@Shelby)-[{self.vol.name + chr(92) + chr(92).join(self.cwd)}]\n└─$ '
 
   def do_ls(self, arg):
     try:
@@ -37,17 +39,22 @@ class Shell(cmd.Cmd):
         print(f"{flagstr:<10}  {str(file['Date Modified']):>20}  {file['Size'] if file['Size'] else '':>15}  {file['Name']}")
     except Exception as e:
       print(f"[ERROR] {e}")
-#               LastWriteTime
+
   def do_cd(self, arg):
     try:
       self.vol.changeDir(arg)
+      dirs = re.sub(r"[/\\]+", r"\\", arg).split("\\")
+      for d in dirs:
+        if d == "..":
+          self.cwd.pop()
+        elif d != ".":
+          self.cwd.append(d)
       self.__updatePrompt()
     except Exception as e:
       print(f"[ERROR] {e}")
 
   def do_tree(self, arg):
-    print(self.vol.name + ":")
-    entries = self.vol.getDir()
+    print(self.vol.name + '\\' + '\\'.join(self.cwd))
     # pos = -1 -> First entry, pos = 1 -> Last entry
     def printTree(entry, prefix="", last=False):
       print(prefix + ("└─" if last else "├─") + entry["Name"])
@@ -55,19 +62,25 @@ class Shell(cmd.Cmd):
       if entry["Flags"] & 0b100000:
         return
       
-      self.vol.changeDir(entry["Name"], False)
+      self.vol.changeDir(entry["Name"])
       entries = self.vol.getDir()
       l = len(entries)
       for i in range(l):
-        if entries[i]["Name"] in  (".", ".."):
+        if entries[i]["Name"] in (".", ".."):
           continue
         prefixChar = "   " if last else "│  "
         printTree(entries[i], prefix + prefixChar, i == l - 1)
-      self.vol.changeDir("..", False)
+      self.vol.changeDir("..")
 
-    l = len(entries)
-    for i in range(l):
-      printTree(entries[i], "", i == l - 1)
+    try:
+      entries = self.vol.getDir()
+      l = len(entries)
+      for i in range(l):
+        if entries[i]["Name"] in (".", ".."):
+          continue
+        printTree(entries[i], "", i == l - 1)
+    except Exception as e:
+      print(f"[ERROR] {e}")
   
   def do_cat(self, arg):
     if arg == "":
