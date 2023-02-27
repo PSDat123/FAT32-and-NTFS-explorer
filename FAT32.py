@@ -12,12 +12,12 @@ class Attribute(Flag):
 
 class FAT:
   def __init__(self, data) -> None:
-    self.rawData = data
+    self.raw_data = data
     self.elements = []
-    for i in range(0, len(self.rawData), 4):
-      self.elements.append(int.from_bytes(self.rawData[i:i + 4], byteorder='little'))
+    for i in range(0, len(self.raw_data), 4):
+      self.elements.append(int.from_bytes(self.raw_data[i:i + 4], byteorder='little'))
   
-  def getClusterList(self, index):
+  def get_cluster_chain(self, index: int) -> 'list[int]':
     index_list = []
     while True:
       index_list.append(index)
@@ -28,128 +28,129 @@ class FAT:
 
 class RDETentry:
   def __init__(self, data) -> None:
-    self.rawData = data
+    self.raw_data = data
     self.flag = data[0xB:0xC]
-    self.isSubEntry = False
-    self.isDeleted = False
-    self.isEmpty = False
-    self.isLabel = False
+    self.is_subentry: bool = False
+    self.is_deleted: bool = False
+    self.is_empty: bool = False
+    self.is_label: bool = False
     self.attr = Attribute(0)
     self.size = 0
-    self.dateCreated = 0
-    self.lastAccessed = 0
-    self.dateUpdated = 0
-    self.longname = ""
+    self.date_created = 0
+    self.last_accessed = 0
+    self.date_updated = 0
+    self.ext = b""
+    self.long_name = ""
     if self.flag == b'\x0f':
-      self.isSubEntry = True
+      self.is_subentry = True
 
-    if not self.isSubEntry:
-      self.name = self.rawData[:0x8]
-      self.ext = self.rawData[0x8:0xB]
+    if not self.is_subentry:
+      self.name = self.raw_data[:0x8]
+      self.ext = self.raw_data[0x8:0xB]
       if self.name[:1] == b'\xe5':
-        self.isDeleted = True
+        self.is_deleted = True
       if self.name[:1] == b'\x00':
-        self.isEmpty = True
+        self.is_empty = True
         self.name = ""
         return
       
       self.attr = Attribute(int.from_bytes(self.flag, byteorder='little'))
       if Attribute.VOLLABLE in self.attr:
-        self.isLabel = True
+        self.is_label = True
         return
 
-      self.timeCreatedRaw = int.from_bytes(self.rawData[0xD:0x10], byteorder='little')
-      self.dateCreatedRaw = int.from_bytes(self.rawData[0x10:0x12], byteorder='little')
-      self.lastAccessedRaw = int.from_bytes(self.rawData[0x12:0x14], byteorder='little')
+      self.time_created_raw = int.from_bytes(self.raw_data[0xD:0x10], byteorder='little')
+      self.date_created_raw = int.from_bytes(self.raw_data[0x10:0x12], byteorder='little')
+      self.last_accessed_raw = int.from_bytes(self.raw_data[0x12:0x14], byteorder='little')
 
-      self.timeUpdatedRaw = int.from_bytes(self.rawData[0x16:0x18], byteorder='little')
-      self.dateUpdatedRaw = int.from_bytes(self.rawData[0x18:0x1A], byteorder='little')
+      self.time_updated_raw = int.from_bytes(self.raw_data[0x16:0x18], byteorder='little')
+      self.date_updated_raw = int.from_bytes(self.raw_data[0x18:0x1A], byteorder='little')
 
-      h = (self.timeCreatedRaw & 0b111110000000000000000000) >> 19
-      m = (self.timeCreatedRaw & 0b000001111110000000000000) >> 13
-      s = (self.timeCreatedRaw & 0b000000000001111110000000) >> 7
-      ms =(self.timeCreatedRaw & 0b000000000000000001111111)
-      year = 1980 + ((self.dateCreatedRaw & 0b1111111000000000) >> 9)
-      mon = (self.dateCreatedRaw & 0b0000000111100000) >> 5
-      day = self.dateCreatedRaw & 0b0000000000011111
+      h = (self.time_created_raw & 0b111110000000000000000000) >> 19
+      m = (self.time_created_raw & 0b000001111110000000000000) >> 13
+      s = (self.time_created_raw & 0b000000000001111110000000) >> 7
+      ms =(self.time_created_raw & 0b000000000000000001111111)
+      year = 1980 + ((self.date_created_raw & 0b1111111000000000) >> 9)
+      mon = (self.date_created_raw & 0b0000000111100000) >> 5
+      day = self.date_created_raw & 0b0000000000011111
 
-      self.dateCreated = datetime(year, mon, day, h, m, s, ms)
+      self.date_created = datetime(year, mon, day, h, m, s, ms)
 
-      year = 1980 + ((self.lastAccessedRaw & 0b1111111000000000) >> 9)
-      mon = (self.lastAccessedRaw & 0b0000000111100000) >> 5
-      day = self.lastAccessedRaw & 0b0000000000011111
+      year = 1980 + ((self.last_accessed_raw & 0b1111111000000000) >> 9)
+      mon = (self.last_accessed_raw & 0b0000000111100000) >> 5
+      day = self.last_accessed_raw & 0b0000000000011111
 
-      self.lastAccessed = datetime(year, mon, day)
+      self.last_accessed = datetime(year, mon, day)
 
-      h = (self.timeUpdatedRaw & 0b1111100000000000) >> 11
-      m = (self.timeUpdatedRaw & 0b0000011111100000) >> 5
-      s = (self.timeUpdatedRaw & 0b0000000000011111) * 2
-      year = 1980 + ((self.dateUpdatedRaw & 0b1111111000000000) >> 9)
-      mon = (self.dateUpdatedRaw & 0b0000000111100000) >> 5
-      day = self.dateUpdatedRaw & 0b0000000000011111
+      h = (self.time_updated_raw & 0b1111100000000000) >> 11
+      m = (self.time_updated_raw & 0b0000011111100000) >> 5
+      s = (self.time_updated_raw & 0b0000000000011111) * 2
+      year = 1980 + ((self.date_updated_raw & 0b1111111000000000) >> 9)
+      mon = (self.date_updated_raw & 0b0000000111100000) >> 5
+      day = self.date_updated_raw & 0b0000000000011111
 
-      self.dateUpdated = datetime(year, mon, day, h, m, s)
+      self.date_updated = datetime(year, mon, day, h, m, s)
 
-      self.startCluster = int.from_bytes(self.rawData[0x14:0x16][::-1] + self.rawData[0x1A:0x1C][::-1], byteorder='big') 
-      self.size = int.from_bytes(self.rawData[0x1C:0x20], byteorder='little')
+      self.start_cluster = int.from_bytes(self.raw_data[0x14:0x16][::-1] + self.raw_data[0x1A:0x1C][::-1], byteorder='big') 
+      self.size = int.from_bytes(self.raw_data[0x1C:0x20], byteorder='little')
 
     else:
-      self.index = self.rawData[0]
+      self.index = self.raw_data[0]
       self.name = b""
       for i in chain(range(0x1, 0xB), range(0xE, 0x1A), range(0x1C, 0x20)):
-        self.name += int.to_bytes(self.rawData[i], 1, byteorder='little')
+        self.name += int.to_bytes(self.raw_data[i], 1, byteorder='little')
         if self.name.endswith(b"\xff\xff"):
           self.name = self.name[:-2]
           break
       self.name = self.name.decode('utf-16le').strip('\x00')
 
-  def isActiveEntry(self) -> bool:
-    return not (self.isEmpty or self.isSubEntry or self.isDeleted or self.isLabel or Attribute.SYSTEM in self.attr)
+  def is_active_entry(self) -> bool:
+    return not (self.is_empty or self.is_subentry or self.is_deleted or self.is_label or Attribute.SYSTEM in self.attr)
   
-  def isDirectory(self) -> bool:
+  def is_directory(self) -> bool:
     return Attribute.DIRECTORY in self.attr
 
-  def isArchive(self) -> bool:
+  def is_archive(self) -> bool:
     return Attribute.ARCHIVE in self.attr
 
 class RDET:
-  def __init__(self, data) -> None:
-    self.rawData = data
-    self.entries = []
-    longname = ""
+  def __init__(self, data: bytes) -> None:
+    self.raw_data: bytes = data
+    self.entries: list[RDETentry] = []
+    long_name = ""
     for i in range(0, len(data), 32):
-      self.entries.append(RDETentry(self.rawData[i: i + 32]))
-      if self.entries[-1].isEmpty or self.entries[-1].isDeleted:
-        longname = ""
+      self.entries.append(RDETentry(self.raw_data[i: i + 32]))
+      if self.entries[-1].is_empty or self.entries[-1].is_deleted:
+        long_name = ""
         continue
-      if self.entries[-1].isSubEntry:
-        longname = self.entries[-1].name + longname
+      if self.entries[-1].is_subentry:
+        long_name = self.entries[-1].name + long_name
       else:
-        if longname != "":
-          self.entries[-1].longname = longname
+        if long_name != "":
+          self.entries[-1].long_name = long_name
         else:
           extend = self.entries[-1].ext.strip().decode()
           if extend == "":
-            self.entries[-1].longname = self.entries[-1].name.strip().decode()
+            self.entries[-1].long_name = self.entries[-1].name.strip().decode()
           else:
-            self.entries[-1].longname = self.entries[-1].name.strip().decode() + "." + extend
-        longname = ""
+            self.entries[-1].long_name = self.entries[-1].name.strip().decode() + "." + extend
+        long_name = ""
 
-  def getActiveEntries(self):
+  def get_active_entries(self) -> 'list[RDETentry]':
     entry_list = []
     for i in range(len(self.entries)):
-      if self.entries[i].isActiveEntry():
+      if self.entries[i].is_active_entry():
         entry_list.append(self.entries[i])
     return entry_list
 
-  def findEntry(self, name):
+  def find_entry(self, name) -> RDETentry:
     for i in range(len(self.entries)):
-      if self.entries[i].isActiveEntry() and self.entries[i].longname.lower() == name.lower():
+      if self.entries[i].is_active_entry() and self.entries[i].long_name.lower() == name.lower():
         return self.entries[i]
     return None
 
 class FAT32:
-  importantInfo = [
+  important_info = [
     "Bytes Per Sector",
     "Sectors Per Cluster", 
     "Reserved Sectors", 
@@ -177,55 +178,55 @@ class FAT32:
       exit() 
     
     try:
-      self.bootSectorRaw = self.fd.read(0x200)
-      self.bootSector = {}
-      self.__extractBootSector()
-      if self.bootSector["FAT Name"] != b"FAT32   ":
+      self.boot_sector_raw = self.fd.read(0x200)
+      self.boot_sector = {}
+      self.__extractboot_sector()
+      if self.boot_sector["FAT Name"] != b"FAT32   ":
         raise Exception("Not FAT32")
-      self.bootSector["FAT Name"] = self.bootSector["FAT Name"].decode()
-      self.SB = self.bootSector['Reserved Sectors']
-      self.SF = self.bootSector["Sectors Per FAT"]
-      self.NF = self.bootSector["No. Copies of FAT"]
-      self.SC = self.bootSector["Sectors Per Cluster"]
-      self.BS = self.bootSector["Bytes Per Sector"]
-      self.bootSectorReservedRaw = self.fd.read(self.BS * (self.SB - 1))
+      self.boot_sector["FAT Name"] = self.boot_sector["FAT Name"].decode()
+      self.SB = self.boot_sector['Reserved Sectors']
+      self.SF = self.boot_sector["Sectors Per FAT"]
+      self.NF = self.boot_sector["No. Copies of FAT"]
+      self.SC = self.boot_sector["Sectors Per Cluster"]
+      self.BS = self.boot_sector["Bytes Per Sector"]
+      self.boot_sector_reserved_raw = self.fd.read(self.BS * (self.SB - 1))
       
-      FATsize = self.BS * self.SF
-      self.FAT = []
+      FAT_size = self.BS * self.SF
+      self.FAT: list[FAT] = []
       for _ in range(self.NF):
-        self.FAT.append(FAT(self.fd.read(FATsize)))
+        self.FAT.append(FAT(self.fd.read(FAT_size)))
 
       self.DET = {}
       
-      start = self.bootSector["Starting Cluster of RDET"]
-      self.DET[start] = RDET(self.getAllClusterData(start))
+      start = self.boot_sector["Starting Cluster of RDET"]
+      self.DET[start] = RDET(self.get_all_cluster_data(start))
       self.RDET = self.DET[start]
 
     except Exception as e:
       print(f"[ERROR] {e}")
       exit()
     
-  def __extractBootSector(self):
-    self.bootSector['Jump_Code'] = self.bootSectorRaw[:3]
-    self.bootSector['OEM_ID'] = self.bootSectorRaw[3:0xB]
-    self.bootSector['Bytes Per Sector'] = int.from_bytes(self.bootSectorRaw[0xB:0xD], byteorder='little')
-    self.bootSector['Sectors Per Cluster'] = int.from_bytes(self.bootSectorRaw[0xD:0xE], byteorder='little')
-    self.bootSector['Reserved Sectors'] = int.from_bytes(self.bootSectorRaw[0xE:0x10], byteorder='little')
-    self.bootSector['No. Copies of FAT'] = int.from_bytes(self.bootSectorRaw[0x10:0x11], byteorder='little')
-    self.bootSector['Media Descriptor'] = self.bootSectorRaw[0x15:0x16]
-    self.bootSector['Sectors Per Track'] = int.from_bytes(self.bootSectorRaw[0x18:0x1A], byteorder='little')
-    self.bootSector['No. Heads'] = int.from_bytes(self.bootSectorRaw[0x1A:0x1C], byteorder='little')
-    self.bootSector['No. Sectors In Volume'] = int.from_bytes(self.bootSectorRaw[0x20:0x24], byteorder='little')
-    self.bootSector['Sectors Per FAT'] = int.from_bytes(self.bootSectorRaw[0x24:0x28], byteorder='little')
-    self.bootSector['Flags'] = int.from_bytes(self.bootSectorRaw[0x28:0x2A], byteorder='little')
-    self.bootSector['FAT32 Version'] = self.bootSectorRaw[0x2A:0x2C]
-    self.bootSector['Starting Cluster of RDET'] = int.from_bytes(self.bootSectorRaw[0x2C:0x30], byteorder='little')
-    # self.bootSector['Sector Number of the FileSystem Information Sector'] = self.bootSectorRaw[0x30:0x32]
-    self.bootSector['Sector Number of BackupBoot'] = self.bootSectorRaw[0x32:0x34]
-    self.bootSector['FAT Name'] = self.bootSectorRaw[0x52:0x5A]
-    self.bootSector['Executable Code'] = self.bootSectorRaw[0x5A:0x1FE]
-    self.bootSector['Signature'] = self.bootSectorRaw[0x1FE:0x200]
-    self.bootSector['Starting Sector of Data'] = self.bootSector['Reserved Sectors'] + self.bootSector['No. Copies of FAT'] * self.bootSector['Sectors Per FAT']
+  def __extractboot_sector(self):
+    self.boot_sector['Jump_Code'] = self.boot_sector_raw[:3]
+    self.boot_sector['OEM_ID'] = self.boot_sector_raw[3:0xB]
+    self.boot_sector['Bytes Per Sector'] = int.from_bytes(self.boot_sector_raw[0xB:0xD], byteorder='little')
+    self.boot_sector['Sectors Per Cluster'] = int.from_bytes(self.boot_sector_raw[0xD:0xE], byteorder='little')
+    self.boot_sector['Reserved Sectors'] = int.from_bytes(self.boot_sector_raw[0xE:0x10], byteorder='little')
+    self.boot_sector['No. Copies of FAT'] = int.from_bytes(self.boot_sector_raw[0x10:0x11], byteorder='little')
+    self.boot_sector['Media Descriptor'] = self.boot_sector_raw[0x15:0x16]
+    self.boot_sector['Sectors Per Track'] = int.from_bytes(self.boot_sector_raw[0x18:0x1A], byteorder='little')
+    self.boot_sector['No. Heads'] = int.from_bytes(self.boot_sector_raw[0x1A:0x1C], byteorder='little')
+    self.boot_sector['No. Sectors In Volume'] = int.from_bytes(self.boot_sector_raw[0x20:0x24], byteorder='little')
+    self.boot_sector['Sectors Per FAT'] = int.from_bytes(self.boot_sector_raw[0x24:0x28], byteorder='little')
+    self.boot_sector['Flags'] = int.from_bytes(self.boot_sector_raw[0x28:0x2A], byteorder='little')
+    self.boot_sector['FAT32 Version'] = self.boot_sector_raw[0x2A:0x2C]
+    self.boot_sector['Starting Cluster of RDET'] = int.from_bytes(self.boot_sector_raw[0x2C:0x30], byteorder='little')
+    # self.boot_sector['Sector Number of the FileSystem Information Sector'] = self.boot_sector_raw[0x30:0x32]
+    self.boot_sector['Sector Number of BackupBoot'] = self.boot_sector_raw[0x32:0x34]
+    self.boot_sector['FAT Name'] = self.boot_sector_raw[0x52:0x5A]
+    self.boot_sector['Executable Code'] = self.boot_sector_raw[0x5A:0x1FE]
+    self.boot_sector['Signature'] = self.boot_sector_raw[0x1FE:0x200]
+    self.boot_sector['Starting Sector of Data'] = self.boot_sector['Reserved Sectors'] + self.boot_sector['No. Copies of FAT'] * self.boot_sector['Sectors Per FAT']
 
   def __offsetFromCluster(self, index):
     return self.SB + self.SF * self.NF + (index - 2) * self.SC
@@ -242,78 +243,78 @@ class FAT32:
   def printAll(self):
     print("Volume name:", self.name)
     print("Volume information:")
-    for key in self.bootSector:
-      print(f"{key}: {self.bootSector[key]}")
+    for key in self.boot_sector:
+      print(f"{key}: {self.boot_sector[key]}")
 
   def printImportant(self):
 
     print("Volume name:", self.name)
     print("Volume information:")
-    for key in FAT32.importantInfo:
-      print(f"{key}: {self.bootSector[key]}")
+    for key in FAT32.important_info:
+      print(f"{key}: {self.boot_sector[key]}")
 
-  def visitDir(self, dir) -> RDET:
+  def visit_dir(self, dir) -> RDET:
     if dir == "":
       raise Exception("Directory name is required!")
     dirs = self.__parse_path(dir)
 
     if dirs[0] == self.name:
-      cdet = self.DET[self.bootSector["Starting Cluster of RDET"]]
+      cdet = self.DET[self.boot_sector["Starting Cluster of RDET"]]
       dirs.pop(0)
     else:
       cdet = self.RDET
 
     for d in dirs:
-      entry = cdet.findEntry(d)
+      entry = cdet.find_entry(d)
       if entry is None:
         raise Exception("Directory not found!")
-      if entry.isDirectory():
-        if entry.startCluster == 0:
-          cdet = self.DET[self.bootSector["Starting Cluster of RDET"]]
+      if entry.is_directory():
+        if entry.start_cluster == 0:
+          cdet = self.DET[self.boot_sector["Starting Cluster of RDET"]]
           continue
-        if entry.startCluster in self.DET:
-          cdet = self.DET[entry.startCluster]
+        if entry.start_cluster in self.DET:
+          cdet = self.DET[entry.start_cluster]
           continue
-        self.DET[entry.startCluster] = RDET(self.getAllClusterData(entry.startCluster))
-        # self.DET[entry.startCluster] = RDET(self.fd.read(self.BS * self.SC))
-        cdet = self.DET[entry.startCluster] 
+        self.DET[entry.start_cluster] = RDET(self.get_all_cluster_data(entry.start_cluster))
+        # self.DET[entry.start_cluster] = RDET(self.fd.read(self.BS * self.SC))
+        cdet = self.DET[entry.start_cluster] 
       else:
         raise Exception("Not a directory")
     return cdet
   
-  def getDir(self, dir=""):
+  def get_dir(self, dir=""):
     if dir == "":
-      entry_list = self.RDET.getActiveEntries()
+      entry_list = self.RDET.get_active_entries()
       ret = []
       for entry in entry_list:
         obj = {}
         obj["Flags"] = entry.attr.value
-        obj["Date Modified"] = entry.dateUpdated
+        obj["Date Modified"] = entry.date_updated
         obj["Size"] = entry.size
-        obj["Name"] = entry.longname
+        obj["Name"] = entry.long_name
         ret.append(obj)
       return ret
     else:
       try:
-        cdet = self.visitDir(dir)
-        entry_list = cdet.getActiveEntries()
+        cdet = self.visit_dir(dir)
+        entry_list = cdet.get_active_entries()
         ret = []
         for entry in entry_list:
           obj = {}
           obj["Flags"] = entry.attr.value
-          obj["Date Modified"] = entry.dateUpdated
+          obj["Date Modified"] = entry.date_updated
           obj["Size"] = entry.size
-          obj["Name"] = entry.longname
+          obj["Name"] = entry.long_name
           ret.append(obj)
         return ret
       except Exception as e:
         raise(e)
       
-  def changeDir(self, path=""):
+  def change_dir(self, path=""):
     if path == "":
       raise Exception("Path to directory is required!")
     try:
-      cdet = self.visitDir(path)
+      cdet = self.visit_dir(path)
       self.RDET = cdet
 
       dirs = self.__parse_path(path)
@@ -329,8 +330,8 @@ class FAT32:
     except Exception as e:
       raise(e)
 
-  def getAllClusterData(self, cluster_index):
-    index_list = self.FAT[0].getClusterList(cluster_index)
+  def get_all_cluster_data(self, cluster_index):
+    index_list = self.FAT[0].get_cluster_chain(cluster_index)
     data = b""
     for i in index_list:
       off = self.__offsetFromCluster(i)
@@ -338,33 +339,33 @@ class FAT32:
       data += self.fd.read(self.SC * self.BS)
     return data
   
-  def getFileContent(self, path: str):
+  def get_file_content(self, path: str) -> bytes:
     path = path.replace("/", "\\")
     index = path.rfind("\\")
     if index != -1:
       name = path[index + 1:]
       path = path[:index]
-      cdet = self.visitDir(path)
-      entry = cdet.findEntry(name)
+      cdet = self.visit_dir(path)
+      entry = cdet.find_entry(name)
     else: 
-      entry = self.RDET.findEntry(path)
+      entry = self.RDET.find_entry(path)
 
     if entry is None:
       raise Exception("File doesn't exist")
-    if entry.isDirectory():
+    if entry.is_directory():
       raise Exception("Is a directory")
-    data = self.getAllClusterData(entry.startCluster)[:entry.size]
+    data = self.get_all_cluster_data(entry.start_cluster)[:entry.size]
     return data
 
   def __str__(self) -> str:
     s = ""
     s += "Volume name: " + self.name
     s += "\nVolume information:\n"
-    for key in FAT32.importantInfo:
-      s += f"{key}: {self.bootSector[key]}\n"
+    for key in FAT32.important_info:
+      s += f"{key}: {self.boot_sector[key]}\n"
     return s
 
   def __del__(self):
     if getattr(self, "fd", None):
-      print("Closing Volume")
+      print("Closing Volume...")
       self.fd.close()

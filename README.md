@@ -21,5 +21,7 @@ python main.py
 ```
 ## Demo
 ![Demo of some commands](./preview/demo.png "Shelby demo")
+Tree command:
+![Demo of tree command](./preview/demo-tree.png "tree cmd demo")
 ## Deadline
 3 Weeks

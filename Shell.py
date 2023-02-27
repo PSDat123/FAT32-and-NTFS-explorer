@@ -8,9 +8,9 @@ class Shell(cmd.Cmd):
   def __init__(self, volume: FAT32) -> None:
     super(Shell, self).__init__()
     self.vol = volume
-    self.__updatePrompt()
+    self.__update_prompt()
 
-  def __updatePrompt(self):
+  def __update_prompt(self):
     Shell.prompt = f'┌──(Tommy@Shelby)-[{self.vol.get_cwd()}]\n└─$ '
   
   def do_cwd(self, arg):
@@ -18,7 +18,7 @@ class Shell(cmd.Cmd):
   
   def do_ls(self, arg):
     try:
-      filelist = self.vol.getDir(arg)
+      filelist = self.vol.get_dir(arg)
       print(f"{'Mode':<10}  {'LastWriteTime':>20}  {'Length':>15}  {'Name'}")
       print(f"{'────':<10}  {'─────────────':>20}  {'──────':>15}  {'────'}")
       for file in filelist:
@@ -44,56 +44,62 @@ class Shell(cmd.Cmd):
 
   def do_cd(self, arg):
     try:
-      self.vol.changeDir(arg)
-      self.__updatePrompt()
+      self.vol.change_dir(arg)
+      self.__update_prompt()
     except Exception as e:
       print(f"[ERROR] {e}")
 
   def do_tree(self, arg):
-    def printTree(entry, prefix="", last=False):
+    def print_tree(entry, prefix="", last=False):
       print(prefix + ("└─" if last else "├─") + entry["Name"])
       # check if is archive
       if entry["Flags"] & 0b100000:
         return
       
-      self.vol.changeDir(entry["Name"])
-      entries = self.vol.getDir()
+      self.vol.change_dir(entry["Name"])
+      entries = self.vol.get_dir()
       l = len(entries)
       for i in range(l):
         if entries[i]["Name"] in (".", ".."):
           continue
-        prefixChar = "   " if last else "│  "
-        printTree(entries[i], prefix + prefixChar, i == l - 1)
-      self.vol.changeDir("..")
+        prefix_char = "   " if last else "│  "
+        print_tree(entries[i], prefix + prefix_char, i == l - 1)
+      self.vol.change_dir("..")
 
     cwd = self.vol.get_cwd()
     try:
       if arg != "":
-        self.vol.changeDir(arg)
-      entries = self.vol.getDir()
+        self.vol.change_dir(arg)
+        print(self.vol.get_cwd())
+      else:
+        print(cwd)
+      entries = self.vol.get_dir()
       l = len(entries)
       for i in range(l):
         if entries[i]["Name"] in (".", ".."):
           continue
-        printTree(entries[i], "", i == l - 1)
+        print_tree(entries[i], "", i == l - 1)
     except Exception as e:
       print(f"[ERROR] {e}")
     finally:
-      self.vol.changeDir(cwd)
+      self.vol.change_dir(cwd)
 
   def do_cat(self, arg):
     if arg == "":
       print(f"[ERROR] No path provided")
       return
     try:
-      print(self.vol.getFileContent(arg).decode())
+      print(self.vol.get_file_content(arg).decode())
     except UnicodeDecodeError:
       print(f"[ERROR] Not a text file")
     except Exception as e:
       print(f"[ERROR] {e}")
 
+  def do_echo(self, arg):
+    print(arg) # lol
+
   def do_bye(self, arg):
-    print('Thank you for using Shelby')
+    print('Thank you for using Shelby! See you next time...')
     self.close()
     return True
   
