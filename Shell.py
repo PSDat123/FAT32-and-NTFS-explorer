@@ -8,12 +8,14 @@ class Shell(cmd.Cmd):
   def __init__(self, volume: FAT32) -> None:
     super(Shell, self).__init__()
     self.vol = volume
-    self.cwd = []
     self.__updatePrompt()
 
   def __updatePrompt(self):
-    Shell.prompt = f'┌──(Tommy@Shelby)-[{self.vol.name + chr(92) + chr(92).join(self.cwd)}]\n└─$ '
-
+    Shell.prompt = f'┌──(Tommy@Shelby)-[{self.vol.get_cwd()}]\n└─$ '
+  
+  def do_cwd(self, arg):
+    print(self.vol.get_cwd())
+  
   def do_ls(self, arg):
     try:
       filelist = self.vol.getDir(arg)
@@ -43,19 +45,11 @@ class Shell(cmd.Cmd):
   def do_cd(self, arg):
     try:
       self.vol.changeDir(arg)
-      dirs = re.sub(r"[/\\]+", r"\\", arg).split("\\")
-      for d in dirs:
-        if d == "..":
-          self.cwd.pop()
-        elif d != ".":
-          self.cwd.append(d)
       self.__updatePrompt()
     except Exception as e:
       print(f"[ERROR] {e}")
 
   def do_tree(self, arg):
-    print(self.vol.name + '\\' + '\\'.join(self.cwd))
-    # pos = -1 -> First entry, pos = 1 -> Last entry
     def printTree(entry, prefix="", last=False):
       print(prefix + ("└─" if last else "├─") + entry["Name"])
       # check if is archive
@@ -72,7 +66,10 @@ class Shell(cmd.Cmd):
         printTree(entries[i], prefix + prefixChar, i == l - 1)
       self.vol.changeDir("..")
 
+    cwd = self.vol.get_cwd()
     try:
+      if arg != "":
+        self.vol.changeDir(arg)
       entries = self.vol.getDir()
       l = len(entries)
       for i in range(l):
@@ -81,7 +78,9 @@ class Shell(cmd.Cmd):
         printTree(entries[i], "", i == l - 1)
     except Exception as e:
       print(f"[ERROR] {e}")
-  
+    finally:
+      self.vol.changeDir(cwd)
+
   def do_cat(self, arg):
     if arg == "":
       print(f"[ERROR] No path provided")

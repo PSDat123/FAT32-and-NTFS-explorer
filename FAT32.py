@@ -160,8 +160,9 @@ class FAT32:
     "Starting Sector of Data",
     "FAT Name"
   ]
-  def __init__(self, name) -> None:
+  def __init__(self, name: str) -> None:
     self.name = name + ":"
+    self.cwd = [self.name]
     try:
       self.fd = open(r'\\.\%s' % self.name, 'rb')
     except FileNotFoundError:
@@ -229,6 +230,15 @@ class FAT32:
   def __offsetFromCluster(self, index):
     return self.SB + self.SF * self.NF + (index - 2) * self.SC
   
+  def __parse_path(self, path):
+    dirs = re.sub(r"[/\\]+", r"\\", path).strip("\\").split("\\")
+    return dirs
+
+  def get_cwd(self):
+    if len(self.cwd) == 1:
+      return self.cwd[0] + "\\"
+    return "\\".join(self.cwd)
+
   def printAll(self):
     print("Volume name:", self.name)
     print("Volume information:")
@@ -245,8 +255,14 @@ class FAT32:
   def visitDir(self, dir) -> RDET:
     if dir == "":
       raise Exception("Directory name is required!")
-    dirs = re.sub(r"[/\\]+", r"\\", dir).split("\\")
-    cdet = self.RDET
+    dirs = self.__parse_path(dir)
+
+    if dirs[0] == self.name:
+      cdet = self.DET[self.bootSector["Starting Cluster of RDET"]]
+      dirs.pop(0)
+    else:
+      cdet = self.RDET
+
     for d in dirs:
       entry = cdet.findEntry(d)
       if entry is None:
@@ -293,12 +309,23 @@ class FAT32:
       except Exception as e:
         raise(e)
       
-  def changeDir(self, dir=""):
-    if dir == "":
-      raise Exception("Directory name is required!")
+  def changeDir(self, path=""):
+    if path == "":
+      raise Exception("Path to directory is required!")
     try:
-      cdet = self.visitDir(dir)
+      cdet = self.visitDir(path)
       self.RDET = cdet
+
+      dirs = self.__parse_path(path)
+      if dirs[0] == self.name:
+        self.cwd.clear()
+        self.cwd.append(self.name)
+        dirs.pop(0)
+      for d in dirs:
+        if d == "..":
+          self.cwd.pop()
+        elif d != ".":
+          self.cwd.append(d)
     except Exception as e:
       raise(e)
 
