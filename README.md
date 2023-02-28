@@ -14,6 +14,7 @@ Shelby là một ứng dụng được viết bằng Python mô phỏng một sh
 * **cd**: Chuyển đổi thư mục
 * **cat**: In nội dung file
 * **tree**: Vẽ cây thư mục
+* **fsstat**: Hiển thị thông tin về hệ thống thư mục
 
 ## Cách sử dụng
 ```python

@@ -98,6 +98,9 @@ class Shell(cmd.Cmd):
   def do_echo(self, arg):
     print(arg) # lol
 
+  def do_fsstat(self, arg):
+    self.vol.print_important()
+
   def do_bye(self, arg):
     print('Thank you for using Shelby! See you next time...')
     self.close()

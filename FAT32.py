@@ -240,14 +240,13 @@ class FAT32:
       return self.cwd[0] + "\\"
     return "\\".join(self.cwd)
 
-  def printAll(self):
+  def print_all(self):
     print("Volume name:", self.name)
     print("Volume information:")
     for key in self.boot_sector:
       print(f"{key}: {self.boot_sector[key]}")
 
-  def printImportant(self):
-
+  def print_important(self):
     print("Volume name:", self.name)
     print("Volume information:")
     for key in FAT32.important_info:
