@@ -19,8 +19,8 @@ class Shell(cmd.Cmd):
   def do_ls(self, arg):
     try:
       filelist = self.vol.get_dir(arg)
-      print(f"{'Mode':<10}  {'LastWriteTime':>20}  {'Length':>15}  {'Name'}")
-      print(f"{'────':<10}  {'─────────────':>20}  {'──────':>15}  {'────'}")
+      print(f"{'Mode':<10}  {'Sector':>10}  {'LastWriteTime':<20}  {'Length':>15}  {'Name'}")
+      print(f"{'────':<10}  {'──────':>10}  {'─────────────':<20}  {'──────':>15}  {'────'}")
       for file in filelist:
         flags = file['Flags']
         flagstr = list("-------")
@@ -38,7 +38,7 @@ class Shell(cmd.Cmd):
           flagstr[-6] = 'a'
         flagstr = "".join(flagstr)
 
-        print(f"{flagstr:<10}  {str(file['Date Modified']):>20}  {file['Size'] if file['Size'] else '':>15}  {file['Name']}")
+        print(f"{flagstr:<10}  {file['Sector']:>10}  {str(file['Date Modified']):<20}  {file['Size'] if file['Size'] else '':>15}  {file['Name']}")
     except Exception as e:
       print(f"[ERROR] {e}")
 

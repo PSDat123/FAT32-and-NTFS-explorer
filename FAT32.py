@@ -162,7 +162,7 @@ class FAT32:
     "FAT Name"
   ]
   def __init__(self, name: str) -> None:
-    self.name = name + ":"
+    self.name = name
     self.cwd = [self.name]
     try:
       self.fd = open(r'\\.\%s' % self.name, 'rb')
@@ -283,8 +283,12 @@ class FAT32:
     return cdet
   
   def get_dir(self, dir=""):
-    if dir == "":
-      entry_list = self.RDET.get_active_entries()
+    try:
+      if dir != "":
+        cdet = self.visit_dir(dir)
+        entry_list = cdet.get_active_entries()
+      else:
+        entry_list = self.RDET.get_active_entries()
       ret = []
       for entry in entry_list:
         obj = {}
@@ -292,23 +296,14 @@ class FAT32:
         obj["Date Modified"] = entry.date_updated
         obj["Size"] = entry.size
         obj["Name"] = entry.long_name
+        if entry.start_cluster == 0:
+          obj["Sector"] = (entry.start_cluster + 2) * self.SC
+        else:
+          obj["Sector"] = entry.start_cluster * self.SC
         ret.append(obj)
       return ret
-    else:
-      try:
-        cdet = self.visit_dir(dir)
-        entry_list = cdet.get_active_entries()
-        ret = []
-        for entry in entry_list:
-          obj = {}
-          obj["Flags"] = entry.attr.value
-          obj["Date Modified"] = entry.date_updated
-          obj["Size"] = entry.size
-          obj["Name"] = entry.long_name
-          ret.append(obj)
-        return ret
-      except Exception as e:
-        raise(e)
+    except Exception as e:
+      raise(e)
       
   def change_dir(self, path=""):
     if path == "":
