@@ -22,7 +22,7 @@ python main.py
 ## Demo
 **Intro**
 
-![Demo of intro](./preview/demo_intro.png "Shelby intro")
+![Demo of intro](./preview/demo_introduction.png "Shelby intro")
 
 **Basic commands**
 
