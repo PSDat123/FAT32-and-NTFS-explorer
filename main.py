@@ -17,9 +17,9 @@ if __name__ == "__main__":
   if choice <= 0 and choice > len(drives):
     print("[ERROR] Invalid choice!")
     exit()
- 
+  
+  print()
   vol = FAT32(drives[choice - 1])
-  print("Volume Info:")
   print(vol)
   shell = Shell(vol)
   shell.cmdloop()
