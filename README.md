@@ -20,9 +20,17 @@ Shelby là một ứng dụng được viết bằng Python mô phỏng một sh
 python main.py
 ```
 ## Demo
-![Demo of some commands](./preview/demo.png "Shelby demo")
+**Intro**
+
+![Demo of intro](./preview/demo_intro.png "Shelby intro")
+
+**Basic commands**
+
+![Demo of basic commands](./preview/demo_basic.png "Shelby demo")
+
 **tree command**:
 
 ![Demo of tree command](./preview/demo_tree_cmd.png "tree cmd demo")
+
 ## Deadline
 3 Weeks
