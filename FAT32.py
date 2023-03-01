@@ -180,7 +180,7 @@ class FAT32:
     try:
       self.boot_sector_raw = self.fd.read(0x200)
       self.boot_sector = {}
-      self.__extractboot_sector()
+      self.__extract_boot_sector()
       if self.boot_sector["FAT Name"] != b"FAT32   ":
         raise Exception("Not FAT32")
       self.boot_sector["FAT Name"] = self.boot_sector["FAT Name"].decode()
@@ -206,7 +206,7 @@ class FAT32:
       print(f"[ERROR] {e}")
       exit()
     
-  def __extractboot_sector(self):
+  def __extract_boot_sector(self):
     self.boot_sector['Jump_Code'] = self.boot_sector_raw[:3]
     self.boot_sector['OEM_ID'] = self.boot_sector_raw[3:0xB]
     self.boot_sector['Bytes Per Sector'] = int.from_bytes(self.boot_sector_raw[0xB:0xD], byteorder='little')
@@ -228,7 +228,7 @@ class FAT32:
     self.boot_sector['Signature'] = self.boot_sector_raw[0x1FE:0x200]
     self.boot_sector['Starting Sector of Data'] = self.boot_sector['Reserved Sectors'] + self.boot_sector['No. Copies of FAT'] * self.boot_sector['Sectors Per FAT']
 
-  def __offsetFromCluster(self, index):
+  def __offset_from_cluster(self, index):
     return self.SB + self.SF * self.NF + (index - 2) * self.SC
   
   def __parse_path(self, path):
@@ -328,21 +328,52 @@ class FAT32:
     index_list = self.FAT[0].get_cluster_chain(cluster_index)
     data = b""
     for i in index_list:
-      off = self.__offsetFromCluster(i)
+      off = self.__offset_from_cluster(i)
       self.fd.seek(off * self.BS)
       data += self.fd.read(self.SC * self.BS)
     return data
   
+  def get_text_file(self, path: str) -> str:
+    path = self.__parse_path(path)
+    if len(path) > 1:
+      name = path[-1]
+      path = "\\".join(path[:-1])
+      cdet = self.visit_dir(path)
+      entry = cdet.find_entry(name)
+    else:
+      entry = self.RDET.find_entry(path[0])
+
+    if entry is None:
+      raise Exception("File doesn't exist")
+    if entry.is_directory():
+      raise Exception("Is a directory")
+    index_list = self.FAT[0].get_cluster_chain(entry.start_cluster)
+    data = ""
+    size_left = entry.size
+    for i in index_list:
+      if size_left <= 0:
+        break
+      off = self.__offset_from_cluster(i)
+      self.fd.seek(off * self.BS)
+      raw_data = self.fd.read(min(self.SC * self.BS, size_left))
+      size_left -= self.SC * self.BS
+      try:
+        data += raw_data.decode()
+      except UnicodeDecodeError as e:
+        raise Exception("Not a text file, please use appropriate software to open.")
+      except Exception as e:
+        raise(e)
+    return data
+
   def get_file_content(self, path: str) -> bytes:
-    path = path.replace("/", "\\")
-    index = path.rfind("\\")
-    if index != -1:
-      name = path[index + 1:]
-      path = path[:index]
+    path = self.__parse_path(path)
+    if len(path) > 1:
+      name = path[-1]
+      path = "\\".join(path[:-1])
       cdet = self.visit_dir(path)
       entry = cdet.find_entry(name)
     else: 
-      entry = self.RDET.find_entry(path)
+      entry = self.RDET.find_entry(path[0])
 
     if entry is None:
       raise Exception("File doesn't exist")

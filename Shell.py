@@ -89,9 +89,7 @@ class Shell(cmd.Cmd):
       print(f"[ERROR] No path provided")
       return
     try:
-      print(self.vol.get_file_content(arg).decode())
-    except UnicodeDecodeError:
-      print(f"[ERROR] Not a text file")
+      print(self.vol.get_text_file(arg))
     except Exception as e:
       print(f"[ERROR] {e}")
 
