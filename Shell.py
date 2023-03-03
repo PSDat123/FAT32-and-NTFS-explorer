@@ -1,11 +1,11 @@
 import cmd
-import re
+from typing import Union
 from FAT32 import FAT32
-
+from NTFS import NTFS
 class Shell(cmd.Cmd):
   intro = "Welcome to Shelby the pseudo-shell! Type help or ? to list the commands.\n"
   prompt = ""
-  def __init__(self, volume: FAT32) -> None:
+  def __init__(self, volume: Union[FAT32, NTFS]) -> None:
     super(Shell, self).__init__()
     self.vol = volume
     self.__update_prompt()
@@ -97,8 +97,8 @@ class Shell(cmd.Cmd):
     print(arg) # lol
 
   def do_fsstat(self, arg):
-    self.vol.print_important()
-
+    print(self.vol)
+    
   def do_bye(self, arg):
     print('Thank you for using Shelby! See you next time...')
     self.close()
