@@ -240,18 +240,6 @@ class FAT32:
       return self.cwd[0] + "\\"
     return "\\".join(self.cwd)
 
-  def print_all(self):
-    print("Volume name:", self.name)
-    print("Volume information:")
-    for key in self.boot_sector:
-      print(f"{key}: {self.boot_sector[key]}")
-
-  def print_important(self):
-    print("Volume name:", self.name)
-    print("Volume information:")
-    for key in FAT32.important_info:
-      print(f"{key}: {self.boot_sector[key]}")
-
   def visit_dir(self, dir) -> RDET:
     if dir == "":
       raise Exception("Directory name is required!")
@@ -383,8 +371,7 @@ class FAT32:
     return data
 
   def __str__(self) -> str:
-    s = ""
-    s += "Volume name: " + self.name
+    s = "Volume name: " + self.name
     s += "\nVolume information:\n"
     for key in FAT32.important_info:
       s += f"{key}: {self.boot_sector[key]}\n"
