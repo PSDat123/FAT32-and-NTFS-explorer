@@ -4,22 +4,30 @@ from Shell import Shell
 import os
 
 if __name__ == "__main__":
-  drives = [chr(x) + ":" for x in range(65, 91) if os.path.exists(chr(x) + ":")]
+  volumes = [chr(x) + ":" for x in range(65, 91) if os.path.exists(chr(x) + ":")]
   print("Available volumes:")
-  for i in range(len(drives)):
-    print(f"{i + 1}/", drives[i])
+  for i in range(len(volumes)):
+    print(f"{i + 1}/", volumes[i])
   try:
     choice = int(input("Which volume to use: "))
   except Exception as e:
     print(f"[ERROR] {e}")
     exit()
 
-  if choice <= 0 and choice > len(drives):
+  if choice <= 0 and choice > len(volumes):
     print("[ERROR] Invalid choice!")
     exit()
-  
   print()
-  vol = FAT32(drives[choice - 1])
+  
+  volume_name = volumes[choice - 1]
+  if FAT32.check_fat32(volume_name):
+    vol = FAT32(volume_name)
+  elif NTFS.check_ntfs(volume_name):
+    vol = NTFS(volume_name)
+  else:
+    print("[ERROR] Unsupported volume type")
+    exit()
+
   print(vol)
   shell = Shell(vol)
   shell.cmdloop()
