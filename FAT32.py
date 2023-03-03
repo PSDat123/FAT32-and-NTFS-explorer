@@ -205,7 +205,21 @@ class FAT32:
     except Exception as e:
       print(f"[ERROR] {e}")
       exit()
-    
+  
+  @staticmethod
+  def check_fat32(name: str):
+    try:
+      with open(r'\\.\%s' % name, 'rb') as fd:
+        fd.read(1)
+        fd.seek(0x52)
+        fat_name = fd.read(8)
+        if fat_name == b"FAT32   ":
+          return True
+        return False
+    except Exception as e:
+      print(f"[ERROR] {e}")
+      exit()
+
   def __extract_boot_sector(self):
     self.boot_sector['Jump_Code'] = self.boot_sector_raw[:3]
     self.boot_sector['OEM_ID'] = self.boot_sector_raw[3:0xB]
