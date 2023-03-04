@@ -216,7 +216,6 @@ class NTFS:
           try:
             mft_record.append(MFTRecord(dat))
           except Exception as e:
-            print("wut", e)
             pass
       
       self.dir_tree = DirectoryTree(mft_record)

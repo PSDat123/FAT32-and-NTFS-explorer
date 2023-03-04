@@ -4,6 +4,12 @@ from Shell import Shell
 import os
 
 if __name__ == "__main__":
+  print("FIT HCMUS - CSC10007 - Operating System - FAT32 & NTFS project")
+  print("----------------------------")
+  print("* 21127243 - Phung Sieu Dat")
+  print("* 21127296 - Dang Ha Huy")
+  print("* 21127300 - Nguyen Cat Huy")
+  print("----------------------------")
   volumes = [chr(x) + ":" for x in range(65, 91) if os.path.exists(chr(x) + ":")]
   print("Available volumes:")
   for i in range(len(volumes)):
