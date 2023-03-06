@@ -51,7 +51,7 @@ class Shell(cmd.Cmd):
 
   def do_tree(self, arg):
     def print_tree(entry, prefix="", last=False):
-      print(prefix + ("└─" if last else "├─") + entry["Name"])
+      print(prefix + ("└── " if last else "├── ") + entry["Name"])
       # check if is archive
       if entry["Flags"] & 0b100000:
         return
@@ -62,7 +62,7 @@ class Shell(cmd.Cmd):
       for i in range(l):
         if entries[i]["Name"] in (".", ".."):
           continue
-        prefix_char = "   " if last else "│  "
+        prefix_char = "    " if last else "│   "
         print_tree(entries[i], prefix + prefix_char, i == l - 1)
       self.vol.change_dir("..")
 
@@ -92,6 +92,29 @@ class Shell(cmd.Cmd):
       print(self.vol.get_text_file(arg))
     except Exception as e:
       print(f"[ERROR] {e}")
+
+  def do_xxd(self, arg):
+    try: 
+      raw_data = self.vol.get_file_content(arg)
+    except Exception as e:
+      print(f"[ERROR] {e}")
+      return
+
+    for i in range(0, len(raw_data), 16):
+      line = raw_data[i: i + 16]
+      index = "%010X" % i 
+      ascii = ""
+      hex_str = ""
+      print(index, end=" ")
+      for j, c in enumerate(line, 1):
+        if j % 9 == 0:
+            hex_str += " "
+        hex_str += "%02X " % c
+        if c > 31 and c < 127:
+            ascii += chr(c)
+        else:
+            ascii += '.'
+      print(f'{hex_str:<49} {ascii}')
 
   def do_echo(self, arg):
     print(arg) # lol
