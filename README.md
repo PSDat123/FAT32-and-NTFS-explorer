@@ -15,21 +15,22 @@ Shelby là một ứng dụng được viết bằng Python mô phỏng một sh
 * **cat**: In nội dung file
 * **tree**: Vẽ cây thư mục
 * **fsstat**: Hiển thị thông tin về hệ thống thư mục
-* **xxd**: In ra 9 của 1 file
+* **xxd**: In ra hexdump của 1 file
 ## Cách sử dụng
 ```python
 python main.py
 ```
 ## Demo
-**Intro**
+### Intro
+**FAT32**
 ![Demo of FAT32 intro](./preview/demo_intro_fat32.png "Shelby FAT32 intro")
-
+**NTFS**
 ![Demo of NTFS intro](./preview/demo_intro_ntfs.png "Shelby NTFS intro")
 
-**Một số câu lệnh cơ bản**
+### Một số chức năng cơ bản
 *Tương thích với cả FAT32 và NTFS*
 
-![Basic commands](./preview/demo_basic_cmd.png "Shelby demo")
+![Basic commands](./preview/demo_basic_cmd.png "basic commands")
 
 ### tree
 ![tree command](./preview/demo_tree_cmd.png "tree cmd demo")
