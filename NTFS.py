@@ -25,9 +25,10 @@ class MFTRecord:
   def __init__(self, data) -> None:
     self.raw_data = data
     self.file_id = int.from_bytes(self.raw_data[0x2C:0x30], byteorder='little')
-    # if self.file_id < 39:
-    #   raise Exception("Skip this record")
     self.flag = self.raw_data[0x16]
+    if self.flag == 0 or self.flag == 2:
+      # Deleted record
+      raise Exception("Skip this record")
     standard_info_start = int.from_bytes(self.raw_data[0x14:0x16], byteorder='little')
     standard_info_size = int.from_bytes(self.raw_data[standard_info_start + 4:standard_info_start + 8], byteorder='little')
     self.standard_info = {}
@@ -49,8 +50,9 @@ class MFTRecord:
       self.standard_info['flags'] |= NTFSAttribute.DIRECTORY
       self.data['size'] = 0
       self.data['resident'] = True
-      # print(self.raw_data[data_start:data_start+200])
     self.childs: list[MFTRecord] = []
+
+    del self.raw_data
 
   def is_directory(self):
     return NTFSAttribute.DIRECTORY in self.standard_info['flags']
@@ -136,12 +138,7 @@ class DirectoryTree:
         break
     
     self.current_dir = self.root
-    # print(self.root.childs[10].childs)
-      # if node.file_id == node.file_name['parent_id']:
-      #   self.root = node
-      #   break
-    
-    # print(self.root.file_name['long_name'])
+
   def find_record(self, name: str):
     return self.current_dir.find_record(name)
   
@@ -160,7 +157,8 @@ class MFTFile:
     self.file_name_len = int.from_bytes(self.raw_data[0x9C:0xA0], byteorder='little')
     self.data_offset = self.file_name_offset + self.file_name_len
     self.data_len = int.from_bytes(self.raw_data[0x104:0x108], byteorder='little')
-    self.size_sector = (int.from_bytes(self.raw_data[0x118:0x120], byteorder='little') + 1) * 8
+    self.num_sector = (int.from_bytes(self.raw_data[0x118:0x120], byteorder='little') + 1) * 8
+    del self.raw_data
 
 class NTFS:
   important_info = [
@@ -200,24 +198,22 @@ class NTFS:
       self.boot_sector["OEM_ID"] = self.boot_sector["OEM_ID"].decode()
       self.boot_sector['Serial Number'] = hex(self.boot_sector['Serial Number'] & 0xFFFFFFFF)[2:].upper()
       self.boot_sector['Serial Number'] = self.boot_sector['Serial Number'][:4] + "-" + self.boot_sector['Serial Number'][4:]
-      # self.SB = self.boot_sector['Reserved Sectors']
       self.SC = self.boot_sector["Sectors Per Cluster"]
       self.BS = self.boot_sector["Bytes Per Sector"]
 
-      self.record_size = self.BS * 2
+      self.record_size = self.boot_sector["MFT record size"]
       self.mft_offset = self.boot_sector['First Cluster of $MFT']
-      # print(self.mft_offset * self.SC * self.BS)
       self.fd.seek(self.mft_offset * self.SC * self.BS)
       self.mft_file = MFTFile(self.fd.read(self.record_size))
       mft_record: list[MFTRecord] = []
-      for _ in range(2, self.mft_file.size_sector, 2):
+      for _ in range(2, self.mft_file.num_sector, 2):
         dat = self.fd.read(self.record_size)
         if dat[:4] == b"FILE":
           try:
             mft_record.append(MFTRecord(dat))
           except Exception as e:
             pass
-      
+  
       self.dir_tree = DirectoryTree(mft_record)
     except Exception as e:
       print(f"[ERROR] {e}")
@@ -236,22 +232,22 @@ class NTFS:
       exit()
 
   def __extract_boot_sector(self):
-    self.boot_sector['Jump_Code'] = self.boot_sector_raw[:3]
+    # self.boot_sector['Jump_Code'] = self.boot_sector_raw[:3]
     self.boot_sector['OEM_ID'] = self.boot_sector_raw[3:0xB]
     self.boot_sector['Bytes Per Sector'] = int.from_bytes(self.boot_sector_raw[0xB:0xD], byteorder='little')
     self.boot_sector['Sectors Per Cluster'] = int.from_bytes(self.boot_sector_raw[0xD:0xE], byteorder='little')
     self.boot_sector['Reserved Sectors'] = int.from_bytes(self.boot_sector_raw[0xE:0x10], byteorder='little')
-    self.boot_sector['Media Descriptor'] = self.boot_sector_raw[0x15:0x16]
-    self.boot_sector['Sectors Per Track'] = int.from_bytes(self.boot_sector_raw[0x18:0x1A], byteorder='little')
-    self.boot_sector['No. Heads'] = int.from_bytes(self.boot_sector_raw[0x1A:0x1C], byteorder='little')
+    # self.boot_sector['Media Descriptor'] = self.boot_sector_raw[0x15:0x16]
+    # self.boot_sector['Sectors Per Track'] = int.from_bytes(self.boot_sector_raw[0x18:0x1A], byteorder='little')
+    # self.boot_sector['No. Heads'] = int.from_bytes(self.boot_sector_raw[0x1A:0x1C], byteorder='little')
     self.boot_sector['No. Sectors In Volume'] = int.from_bytes(self.boot_sector_raw[0x28:0x30], byteorder='little')
     self.boot_sector['First Cluster of $MFT'] = int.from_bytes(self.boot_sector_raw[0x30:0x38], byteorder='little')
     self.boot_sector['First Cluster of $MFTMirr'] = int.from_bytes(self.boot_sector_raw[0x38:0x40], byteorder='little')
     self.boot_sector['Clusters Per File Record Segment'] = int.from_bytes(self.boot_sector_raw[0x40:0x41], byteorder='little', signed=True)
     self.boot_sector['MFT record size'] = 2 ** abs(self.boot_sector['Clusters Per File Record Segment'])
-    self.boot_sector['Clusters Per Index Buffer'] = int.from_bytes(self.boot_sector_raw[0x44:0x45], byteorder='little')
+    # self.boot_sector['Clusters Per Index Buffer'] = int.from_bytes(self.boot_sector_raw[0x44:0x45], byteorder='little')
     self.boot_sector['Serial Number'] = int.from_bytes(self.boot_sector_raw[0x48:0x50], byteorder='little')
-    self.boot_sector['Bootstrap Code'] = self.boot_sector_raw[0x54:0x1FE]
+    # self.boot_sector['Bootstrap Code'] = self.boot_sector_raw[0x54:0x1FE]
     self.boot_sector['Signature'] = self.boot_sector_raw[0x1FE:0x200]
   
 
@@ -332,16 +328,31 @@ class NTFS:
       return self.cwd[0] + "\\"
     return "\\".join(self.cwd)
   
-  def get_data(self, record: MFTRecord):
+  def get_file_content(self, path: str):
+    path = self.__parse_path(path)
+    if len(path) > 1:
+      name = path[-1]
+      path = "\\".join(path[:-1])
+      next_dir = self.visit_dir(path)
+      record = next_dir.find_record(name)
+    else:
+      record = self.dir_tree.find_record(path[0])
+
+    if record is None:
+      raise Exception("File doesn't exist")
+    if record.is_directory():
+      raise Exception("Is a directory")
+
     if 'resident' not in record.data:
       return b''
     if record.data['resident']:
       return record.data['content']
     else:
+      real_size = record.data['size']
       offset = record.data['cluster_offset'] * self.SC * self.BS
       size = record.data['cluster_size'] * self.SC * self.BS
       self.fd.seek(offset)
-      data = self.fd.read(size)
+      data = self.fd.read(min(size, real_size))
       return data
 
   def get_text_file(self, path: str) -> str:
@@ -358,9 +369,8 @@ class NTFS:
       raise Exception("File doesn't exist")
     if record.is_directory():
       raise Exception("Is a directory")
-    # index_list = self.FAT[0].get_cluster_chain(entry.start_cluster)
     if 'resident' not in record.data:
-      return b''
+      return ''
     if record.data['resident']:
       try:
         data = record.data['content'].decode()
@@ -375,25 +385,22 @@ class NTFS:
       size_left = record.data['size']
       offset = record.data['cluster_offset'] * self.SC * self.BS
       cluster_num = record.data['cluster_size']
+      self.fd.seek(offset)
       for _ in range(cluster_num):
         if size_left <= 0:
           break
-
-        self.fd.seek(offset)
         raw_data = self.fd.read(min(self.SC * self.BS, size_left))
         size_left -= self.SC * self.BS
         try:
           data += raw_data.decode()
         except UnicodeDecodeError as e:
-          raise Exception(
-              "Not a text file, please use appropriate software to open.")
+          raise Exception("Not a text file, please use appropriate software to open.")
         except Exception as e:
           raise (e)
       return data
   
   def __str__(self) -> str:
-    s = ""
-    s += "Volume name: " + self.name
+    s = "Volume name: " + self.name
     s += "\nVolume information:\n"
     for key in NTFS.important_info:
       s += f"{key}: {self.boot_sector[key]}\n"
