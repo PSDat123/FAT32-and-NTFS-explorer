@@ -125,16 +125,17 @@ class RDET:
         continue
       if self.entries[-1].is_subentry:
         long_name = self.entries[-1].name + long_name
+        continue
+
+      if long_name != "":
+        self.entries[-1].long_name = long_name
       else:
-        if long_name != "":
-          self.entries[-1].long_name = long_name
+        extend = self.entries[-1].ext.strip().decode()
+        if extend == "":
+          self.entries[-1].long_name = self.entries[-1].name.strip().decode()
         else:
-          extend = self.entries[-1].ext.strip().decode()
-          if extend == "":
-            self.entries[-1].long_name = self.entries[-1].name.strip().decode()
-          else:
-            self.entries[-1].long_name = self.entries[-1].name.strip().decode() + "." + extend
-        long_name = ""
+          self.entries[-1].long_name = self.entries[-1].name.strip().decode() + "." + extend
+      long_name = ""
 
   def get_active_entries(self) -> 'list[RDETentry]':
     entry_list = []
@@ -221,25 +222,25 @@ class FAT32:
       exit()
 
   def __extract_boot_sector(self):
-    self.boot_sector['Jump_Code'] = self.boot_sector_raw[:3]
-    self.boot_sector['OEM_ID'] = self.boot_sector_raw[3:0xB]
+    # self.boot_sector['Jump_Code'] = self.boot_sector_raw[:3]
+    # self.boot_sector['OEM_ID'] = self.boot_sector_raw[3:0xB]
     self.boot_sector['Bytes Per Sector'] = int.from_bytes(self.boot_sector_raw[0xB:0xD], byteorder='little')
     self.boot_sector['Sectors Per Cluster'] = int.from_bytes(self.boot_sector_raw[0xD:0xE], byteorder='little')
     self.boot_sector['Reserved Sectors'] = int.from_bytes(self.boot_sector_raw[0xE:0x10], byteorder='little')
     self.boot_sector['No. Copies of FAT'] = int.from_bytes(self.boot_sector_raw[0x10:0x11], byteorder='little')
-    self.boot_sector['Media Descriptor'] = self.boot_sector_raw[0x15:0x16]
-    self.boot_sector['Sectors Per Track'] = int.from_bytes(self.boot_sector_raw[0x18:0x1A], byteorder='little')
-    self.boot_sector['No. Heads'] = int.from_bytes(self.boot_sector_raw[0x1A:0x1C], byteorder='little')
+    # self.boot_sector['Media Descriptor'] = self.boot_sector_raw[0x15:0x16]
+    # self.boot_sector['Sectors Per Track'] = int.from_bytes(self.boot_sector_raw[0x18:0x1A], byteorder='little')
+    # self.boot_sector['No. Heads'] = int.from_bytes(self.boot_sector_raw[0x1A:0x1C], byteorder='little')
     self.boot_sector['No. Sectors In Volume'] = int.from_bytes(self.boot_sector_raw[0x20:0x24], byteorder='little')
     self.boot_sector['Sectors Per FAT'] = int.from_bytes(self.boot_sector_raw[0x24:0x28], byteorder='little')
     self.boot_sector['Flags'] = int.from_bytes(self.boot_sector_raw[0x28:0x2A], byteorder='little')
     self.boot_sector['FAT32 Version'] = self.boot_sector_raw[0x2A:0x2C]
     self.boot_sector['Starting Cluster of RDET'] = int.from_bytes(self.boot_sector_raw[0x2C:0x30], byteorder='little')
     # self.boot_sector['Sector Number of the FileSystem Information Sector'] = self.boot_sector_raw[0x30:0x32]
-    self.boot_sector['Sector Number of BackupBoot'] = self.boot_sector_raw[0x32:0x34]
+    # self.boot_sector['Sector Number of BackupBoot'] = self.boot_sector_raw[0x32:0x34]
     self.boot_sector['FAT Name'] = self.boot_sector_raw[0x52:0x5A]
-    self.boot_sector['Executable Code'] = self.boot_sector_raw[0x5A:0x1FE]
-    self.boot_sector['Signature'] = self.boot_sector_raw[0x1FE:0x200]
+    # self.boot_sector['Executable Code'] = self.boot_sector_raw[0x5A:0x1FE]
+    # self.boot_sector['Signature'] = self.boot_sector_raw[0x1FE:0x200]
     self.boot_sector['Starting Sector of Data'] = self.boot_sector['Reserved Sectors'] + self.boot_sector['No. Copies of FAT'] * self.boot_sector['Sectors Per FAT']
 
   def __offset_from_cluster(self, index):
@@ -277,7 +278,6 @@ class FAT32:
           cdet = self.DET[entry.start_cluster]
           continue
         self.DET[entry.start_cluster] = RDET(self.get_all_cluster_data(entry.start_cluster))
-        # self.DET[entry.start_cluster] = RDET(self.fd.read(self.BS * self.SC))
         cdet = self.DET[entry.start_cluster] 
       else:
         raise Exception("Not a directory")

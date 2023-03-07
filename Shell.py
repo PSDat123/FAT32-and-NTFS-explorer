@@ -13,14 +13,21 @@ class Shell(cmd.Cmd):
   def __update_prompt(self):
     Shell.prompt = f'┌──(Tommy@Shelby)-[{self.vol.get_cwd()}]\n└─$ '
   
-  def do_cwd(self, arg):
+  def do_pwd(self, arg):
+    '''
+    pwd: print current working directory
+    '''
     print(self.vol.get_cwd())
   
   def do_ls(self, arg):
+    '''
+    ls: list out all files and folders in current directory
+    ls <path>: list out all files and folders in specified path
+    '''
     try:
       filelist = self.vol.get_dir(arg)
-      print(f"{'Mode':<10}  {'Sector':>10}  {'LastWriteTime':<20}  {'Length':>15}  {'Name'}")
-      print(f"{'────':<10}  {'──────':>10}  {'─────────────':<20}  {'──────':>15}  {'────'}")
+      print(f"{'Mode':<10}  {'Sector':>10}  {'LastWriteTime':<20}  {'Length':>12}  {'Name'}")
+      print(f"{'────':<10}  {'──────':>10}  {'─────────────':<20}  {'──────':>12}  {'────'}")
       for file in filelist:
         flags = file['Flags']
         flagstr = list("-------")
@@ -38,11 +45,14 @@ class Shell(cmd.Cmd):
           flagstr[-6] = 'a'
         flagstr = "".join(flagstr)
 
-        print(f"{flagstr:<10}  {file['Sector']:>10}  {str(file['Date Modified']):<20}  {file['Size'] if file['Size'] else '':>15}  {file['Name']}")
+        print(f"{flagstr:<10}  {file['Sector']:>10}  {str(file['Date Modified']):<20}  {file['Size'] if file['Size'] else '':>12}  {file['Name']}")
     except Exception as e:
       print(f"[ERROR] {e}")
 
   def do_cd(self, arg):
+    '''
+      cd <path>: change to directory specified in path
+    '''
     try:
       self.vol.change_dir(arg)
       self.__update_prompt()
@@ -50,6 +60,10 @@ class Shell(cmd.Cmd):
       print(f"[ERROR] {e}")
 
   def do_tree(self, arg):
+    '''
+      tree: print the tree of the current directory and it's sub-directory
+      tree <path>: print the directory tree in the specified path
+    '''
     def print_tree(entry, prefix="", last=False):
       print(prefix + ("└── " if last else "├── ") + entry["Name"])
       # check if is archive
@@ -85,6 +99,9 @@ class Shell(cmd.Cmd):
       self.vol.change_dir(cwd)
 
   def do_cat(self, arg):
+    '''
+      cat <path to file>: print content of file specified in path (text only)
+    '''
     if arg == "":
       print(f"[ERROR] No path provided")
       return
@@ -94,6 +111,9 @@ class Shell(cmd.Cmd):
       print(f"[ERROR] {e}")
 
   def do_xxd(self, arg):
+    '''
+      xxd <path to file>: print hexdump of the file specified in path
+    '''
     try: 
       raw_data = self.vol.get_file_content(arg)
     except Exception as e:
@@ -117,12 +137,21 @@ class Shell(cmd.Cmd):
       print(f'{hex_str:<49} {ascii}')
 
   def do_echo(self, arg):
+    '''
+      echo <anything>: print whatever you give it
+    '''
     print(arg) # lol
 
   def do_fsstat(self, arg):
+    '''
+      fsstat: print volume information
+    '''
     print(self.vol)
     
   def do_bye(self, arg):
+    '''
+      bye: exit the shell
+    '''
     print('Thank you for using Shelby! See you next time...')
     self.close()
     return True
