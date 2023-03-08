@@ -122,7 +122,7 @@ class Shell(cmd.Cmd):
 
     for i in range(0, len(raw_data), 16):
       line = raw_data[i: i + 16]
-      index = "%010X" % i 
+      index = "%08X:" % i 
       ascii = ""
       hex_str = ""
       print(index, end=" ")
